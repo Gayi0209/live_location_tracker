@@ -1,0 +1,57 @@
+{% extends "tracker/base.html" %}
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>#map{height:80vh;width:100%;}</style>
+{% endblock %}
+
+{% block content %}
+<div>
+  <label>Refresh Interval: <input id="interval" type="number" value="4" style="width:50px;"> sec</label>
+  <button id="start">Start</button>
+  <button id="stop" disabled>Stop</button>
+</div>
+<div id="map"></div>
+<pre id="log"></pre>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map=L.map('map').setView([20.5937,78.9629],5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+
+const markers={};let timer=null;
+const logEl=document.getElementById('log');
+
+function log(msg){logEl.textContent=new Date().toLocaleTimeString()+" - "+msg+"\n"+logEl.textContent;}
+
+async function fetchLocations(){
+  try{
+    const res=await fetch('/api/locations/latest/');
+    const data=await res.json();
+    data.forEach(loc=>{
+      if(!markers[loc.username]){
+        markers[loc.username]=L.marker([loc.latitude,loc.longitude]).addTo(map).bindPopup(loc.username);
+      }else{
+        markers[loc.username].setLatLng([loc.latitude,loc.longitude]);
+      }
+    });
+    if(data.length){map.setView([data[0].latitude,data[0].longitude],13);}
+    log("Updated "+data.length+" users");
+  }catch(e){log("Error: "+e);}
+}
+
+document.getElementById('start').onclick=()=>{
+  const interval=parseInt(document.getElementById('interval').value)*1000;
+  fetchLocations();
+  timer=setInterval(fetchLocations,interval);
+  document.getElementById('start').disabled=true;
+  document.getElementById('stop').disabled=false;
+};
+document.getElementById('stop').onclick=()=>{
+  clearInterval(timer);timer=null;
+  document.getElementById('start').disabled=false;
+  document.getElementById('stop').disabled=true;
+};
+</script>
+{% endblock %}

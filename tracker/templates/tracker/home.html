@@ -1,0 +1,52 @@
+{% extends "tracker/base.html" %}
+{% block title %}User Tracker{% endblock %}
+{% block content %}
+<label>Your name: <input id="username" placeholder="e.g. Gayathri"></label>
+<br><br>
+<button id="startBtn">Start Tracking</button>
+<button id="stopBtn" disabled>Stop</button>
+<p id="status">Not tracking yet.</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let watchId=null;
+const startBtn=document.getElementById('startBtn');
+const stopBtn=document.getElementById('stopBtn');
+const statusEl=document.getElementById('status');
+
+function postLocation(data){
+  fetch('/api/update/',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
+  }).catch(e=>console.error('Send error',e));
+}
+
+function startTracking(){
+  const username=document.getElementById('username').value.trim();
+  if(!username){alert('Enter name');return;}
+  if(!navigator.geolocation){alert('No geolocation support');return;}
+  watchId=navigator.geolocation.watchPosition(pos=>{
+    const data={
+      username:username,
+      latitude:pos.coords.latitude,
+      longitude:pos.coords.longitude,
+      accuracy:pos.coords.accuracy
+    };
+    statusEl.textContent=`Sent (${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)})`;
+    postLocation(data);
+  },err=>{statusEl.textContent='Error: '+err.message;},{enableHighAccuracy:true});
+  startBtn.disabled=true;stopBtn.disabled=false;
+}
+
+function stopTracking(){
+  if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+  startBtn.disabled=false;stopBtn.disabled=true;
+  statusEl.textContent='Stopped tracking';
+}
+
+startBtn.onclick=startTracking;
+stopBtn.onclick=stopTracking;
+</script>
+{% endblock %}
